@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparador RNNs - Ernesto Investing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+    <nav class="bg-indigo-900 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">Ernesto Investing AI | Comparador RNNs</h1>
+        <a href="index.html" class="text-indigo-200 hover:text-white transition">← Volver al Portal</a>
+    </nav>
+
+    <div class="max-w-4xl mx-auto mt-8 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 flex gap-4 items-center">
+            <label class="font-bold text-slate-700">Analizar Ticker:</label>
+            <select id="tickerSelect" class="border border-slate-300 rounded px-4 py-2 focus:ring-2 focus:ring-indigo-500">
+                <option value="FSM">Fortuna Silver Mines (FSM)</option>
+                <option value="VOLCABC1.LM">Volcan Compañía Minera (VOLCABC1.LM)</option>
+                <option value="ABX.TO">Barrick Gold (ABX.TO)</option>
+                <option value="BVN">Buenaventura (BVN)</option>
+                <option value="BHP">BHP Billiton (BHP)</option>
+            </select>
+            <button onclick="cargarRNN()" class="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition font-medium">
+                Ejecutar Redes Neuronales
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-center p-10"><p class="text-indigo-600 animate-pulse">Consultando MongoDB Atlas...</p></div>
+        <div id="errorMsg" class="hidden text-center p-10 text-red-600 font-medium"></div>
+
+        <div id="resultadoRNN" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-indigo-900 text-white p-4">
+                <h2 class="text-lg font-bold">Red Neuronal Recurrente Activa (LSTM)</h2>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6 pb-6 border-b border-slate-100">
+                    <div>
+                        <p class="text-sm text-slate-500 uppercase font-bold tracking-wider">Señal Consolidada (LSTM)</p>
+                        <div id="senal-rnn" class="text-4xl font-black mt-2">--</div>
+                    </div>
+                </div>
+                
+                <h3 class="font-bold text-slate-700 mb-4">Tabla de Métricas</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700">
+                                <th class="p-3 border-b border-slate-200">Arquitectura</th>
+                                <th class="p-3 border-b border-slate-200">Accuracy</th>
+                                <th class="p-3 border-b border-slate-200">F1-Score</th>
+                                <th class="p-3 border-b border-slate-200">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 border-b border-slate-100 font-medium">LSTM (Long Short-Term Memory)</td>
+                                <td class="p-3 border-b border-slate-100 font-bold text-indigo-700" id="acc-rnn">--</td>
+                                <td class="p-3 border-b border-slate-100 font-bold text-indigo-700" id="f1-rnn">--</td>
+                                <td class="p-3 border-b border-slate-100"><span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">Operacional</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function cargarRNN() {
+            const apiUrl = sessionStorage.getItem('investingApiUrl');
+            if (!apiUrl) return window.location.href = 'index.html';
+            
+            const ticker = document.getElementById('tickerSelect').value;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('resultadoRNN').classList.add('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
+
+            fetch(`${apiUrl}/api/modelos/${ticker}`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+            .then(res => { if(!res.ok) throw new Error('Error'); return res.json(); })
+            .then(data => {
+                const predLSTM = data.predicciones_actuales.find(p => p.Modelo === 'LSTM');
+                const metLSTM = data.metricas.find(m => m.Modelo === 'LSTM');
+
+                if(predLSTM && metLSTM) {
+                    const elSenal = document.getElementById('senal-rnn');
+                    elSenal.innerText = predLSTM.Senal === 1 ? "📈 COMPRAR (BUY)" : "📉 VENDER (SELL)";
+                    elSenal.className = predLSTM.Senal === 1 ? "text-4xl font-black mt-2 text-emerald-500" : "text-4xl font-black mt-2 text-red-500";
+                    
+                    document.getElementById('acc-rnn').innerText = `${(metLSTM.Accuracy * 100).toFixed(2)}%`;
+                    document.getElementById('f1-rnn').innerText = metLSTM.F1_Score;
+                    
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('resultadoRNN').classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('errorMsg').innerText = "Asegúrate de que la API está corriendo y los modelos se entrenaron.";
+                document.getElementById('errorMsg').classList.remove('hidden');
+            });
+        }
+    </script>
+</body>
+</html>
