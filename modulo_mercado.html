@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Mercado - Ernesto Investing AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+    <nav class="bg-blue-900 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">Ernesto Investing AI | Mercado</h1>
+        <a href="index.html" class="text-blue-200 hover:text-white transition">← Volver al Portal</a>
+    </nav>
+
+    <div class="max-w-7xl mx-auto mt-8 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 flex gap-4 items-center">
+            <label class="font-bold text-slate-700">Seleccionar Ticker:</label>
+            <select id="tickerSelect" class="border border-slate-300 rounded px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                <option value="FSM">Fortuna Silver Mines (FSM)</option>
+                <option value="VOLCABC1.LM">Volcan Compañía Minera (VOLCABC1.LM)</option>
+                <option value="ABX.TO">Barrick Gold (ABX.TO)</option>
+                <option value="BVN">Buenaventura (BVN)</option>
+                <option value="BHP">BHP Billiton (BHP)</option>
+            </select>
+            <button onclick="cargarDatos()" class="bg-slate-800 text-white px-6 py-2 rounded hover:bg-slate-700 transition">
+                Analizar
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-center p-10">
+            <p class="text-blue-600 font-medium animate-pulse">Obteniendo datos desde MongoDB Atlas...</p>
+        </div>
+
+        <div id="chartContainer" class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-[600px] w-full hidden"></div>
+    </div>
+
+    <script>
+        function cargarDatos() {
+            const apiUrl = sessionStorage.getItem('investingApiUrl');
+            if (!apiUrl) {
+                alert("No hay conexión con la API. Regresa al portal de inicio.");
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const ticker = document.getElementById('tickerSelect').value;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('chartContainer').classList.add('hidden');
+
+            fetch(`${apiUrl}/api/mercado/${ticker}`, {
+                headers: { 'ngrok-skip-browser-warning': 'true' }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Error al obtener datos');
+                return res.json();
+            })
+            .then(data => renderizarGrafico(data))
+            .catch(err => {
+                alert("Error al cargar los datos. Revisa la consola.");
+                console.error(err);
+                document.getElementById('loading').classList.add('hidden');
+            });
+        }
+
+        function renderizarGrafico(data) {
+            const historico = data.historico;
+            
+            // Extraer vectores para Plotly
+            const fechas = historico.map(d => d.Date);
+            const open = historico.map(d => d.Open);
+            const high = historico.map(d => d.High);
+            const low = historico.map(d => d.Low);
+            const close = historico.map(d => d.Close);
+            const sma20 = historico.map(d => d.SMA_20);
+            const sma50 = historico.map(d => d.SMA_50);
+
+            const traceVelas = {
+                x: fechas, close: close, decreasing: {line: {color: '#EF5350'}}, 
+                high: high, increasing: {line: {color: '#26A69A'}}, 
+                line: {color: 'rgba(31,119,180,1)'}, low: low, open: open, 
+                type: 'candlestick', xaxis: 'x', yaxis: 'y', name: data.ticker
+            };
+
+            const traceSMA20 = {
+                x: fechas, y: sma20, type: 'scatter', mode: 'lines',
+                line: {color: 'blue', width: 1}, name: 'SMA 20'
+            };
+
+            const traceSMA50 = {
+                x: fechas, y: sma50, type: 'scatter', mode: 'lines',
+                line: {color: 'orange', width: 1}, name: 'SMA 50'
+            };
+
+            const layout = {
+                title: `Análisis Técnico: ${data.ticker}`,
+                dragmode: 'zoom',
+                margin: { r: 10, t: 40, b: 40, l: 40 },
+                showlegend: true,
+                xaxis: { autorange: true, title: 'Fecha', type: 'date', rangeslider: {visible: false} },
+                yaxis: { autorange: true, type: 'linear', title: 'Precio (USD)' }
+            };
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('chartContainer').classList.remove('hidden');
+            
+            Plotly.newPlot('chartContainer', [traceVelas, traceSMA20, traceSMA50], layout);
+        }
+    </script>
+</body>
+</html>
