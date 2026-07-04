@@ -1,5 +1,0 @@
-yfinance==0.2.37
-ta==0.11.0
-pymongo==4.6.2
-pandas
-numpy
