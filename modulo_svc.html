@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clasificador SVC - Ernesto Investing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+    <nav class="bg-blue-900 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">Ernesto Investing AI | Clasificador SVC</h1>
+        <a href="index.html" class="text-blue-200 hover:text-white transition">← Volver al Portal</a>
+    </nav>
+
+    <div class="max-w-4xl mx-auto mt-8 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 flex gap-4 items-center">
+            <label class="font-bold text-slate-700">Analizar Ticker:</label>
+            <select id="tickerSelect" class="border border-slate-300 rounded px-4 py-2 focus:ring-2 focus:ring-blue-500">
+                <option value="FSM">Fortuna Silver Mines (FSM)</option>
+                <option value="VOLCABC1.LM">Volcan Compañía Minera (VOLCABC1.LM)</option>
+                <option value="ABX.TO">Barrick Gold (ABX.TO)</option>
+                <option value="BVN">Buenaventura (BVN)</option>
+                <option value="BHP">BHP Billiton (BHP)</option>
+            </select>
+            <button onclick="cargarSVC()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition font-medium">
+                Ejecutar Modelo
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-center p-10"><p class="text-blue-600 animate-pulse">Consultando MongoDB Atlas...</p></div>
+        <div id="errorMsg" class="hidden text-center p-10 text-red-600 font-medium"></div>
+
+        <div id="resultadoSVC" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-800 text-white p-4">
+                <h2 class="text-lg font-bold">Support Vector Classifier (GridSearchCV)</h2>
+            </div>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6 pb-6 border-b border-slate-100">
+                    <div>
+                        <p class="text-sm text-slate-500 uppercase font-bold tracking-wider">Señal Actual (Predicción)</p>
+                        <div id="senal-svc" class="text-4xl font-black mt-2">--</div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm text-slate-500 uppercase font-bold tracking-wider">Últ. Precio Base</p>
+                        <div id="precio-svc" class="text-3xl font-semibold text-slate-700 mt-2">$--</div>
+                    </div>
+                </div>
+                
+                <h3 class="font-bold text-slate-700 mb-4">Métricas del Modelo</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-50 p-4 rounded border border-slate-100 text-center">
+                        <span class="text-sm text-slate-500 block mb-1">Accuracy</span>
+                        <span id="acc-svc" class="font-bold text-xl text-blue-900">--%</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded border border-slate-100 text-center">
+                        <span class="text-sm text-slate-500 block mb-1">F1-Score</span>
+                        <span id="f1-svc" class="font-bold text-xl text-blue-900">--</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded border border-slate-100 text-center">
+                        <span class="text-sm text-slate-500 block mb-1">Precision</span>
+                        <span id="prec-svc" class="font-bold text-xl text-blue-900">--</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded border border-slate-100 text-center">
+                        <span class="text-sm text-slate-500 block mb-1">Recall</span>
+                        <span id="rec-svc" class="font-bold text-xl text-blue-900">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function cargarSVC() {
+            const apiUrl = sessionStorage.getItem('investingApiUrl');
+            if (!apiUrl) return window.location.href = 'index.html';
+            
+            const ticker = document.getElementById('tickerSelect').value;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('resultadoSVC').classList.add('hidden');
+            document.getElementById('errorMsg').classList.add('hidden');
+
+            fetch(`${apiUrl}/api/modelos/${ticker}`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+            .then(res => { if(!res.ok) throw new Error('Error de conexión'); return res.json(); })
+            .then(data => {
+                const predSVC = data.predicciones_actuales.find(p => p.Modelo === 'SVC');
+                const metSVC = data.metricas.find(m => m.Modelo === 'SVC');
+
+                if(predSVC && metSVC) {
+                    const elSenal = document.getElementById('senal-svc');
+                    elSenal.innerText = predSVC.Senal === 1 ? "📈 COMPRAR (BUY)" : "📉 VENDER (SELL)";
+                    elSenal.className = predSVC.Senal === 1 ? "text-4xl font-black mt-2 text-emerald-500" : "text-4xl font-black mt-2 text-red-500";
+                    
+                    document.getElementById('precio-svc').innerText = `$${predSVC.Precio_Referencia.toFixed(2)}`;
+                    document.getElementById('acc-svc').innerText = `${(metSVC.Accuracy * 100).toFixed(2)}%`;
+                    document.getElementById('f1-svc').innerText = metSVC.F1_Score;
+                    document.getElementById('prec-svc').innerText = metSVC.Precision;
+                    document.getElementById('rec-svc').innerText = metSVC.Recall;
+                    
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('resultadoSVC').classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('errorMsg').innerText = "Asegúrate de que la API está corriendo y los modelos se entrenaron.";
+                document.getElementById('errorMsg').classList.remove('hidden');
+            });
+        }
+    </script>
+</body>
+</html>
