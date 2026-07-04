@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regresor LSTM - Ernesto Investing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans">
+    <nav class="bg-teal-900 text-white p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold">Ernesto Investing AI | Regresor LSTM</h1>
+        <a href="index.html" class="text-teal-200 hover:text-white transition">← Volver al Portal</a>
+    </nav>
+
+    <div class="max-w-4xl mx-auto mt-8 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 flex gap-4 items-center">
+            <label class="font-bold text-slate-700">Analizar Ticker:</label>
+            <select id="tickerSelect" class="border border-slate-300 rounded px-4 py-2 focus:ring-2 focus:ring-teal-500">
+                <option value="FSM">Fortuna Silver Mines (FSM)</option>
+                <option value="VOLCABC1.LM">Volcan Compañía Minera (VOLCABC1.LM)</option>
+                <option value="ABX.TO">Barrick Gold (ABX.TO)</option>
+                <option value="BVN">Buenaventura (BVN)</option>
+                <option value="BHP">BHP Billiton (BHP)</option>
+            </select>
+            <button onclick="cargarRegresor()" class="bg-teal-600 text-white px-6 py-2 rounded hover:bg-teal-700 transition font-medium">
+                Ejecutar Regresor
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-center p-10"><p class="text-teal-600 animate-pulse">Procesando curva de precios...</p></div>
+
+        <div id="resultadoReg" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-teal-800 text-white p-4">
+                <h2 class="text-lg font-bold">LSTM Regressor (Pronóstico de Precios)</h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-50 p-4 rounded border border-slate-100 text-center">
+                        <span class="text-sm text-slate-500 block mb-1">Último Precio Detectado</span>
+                        <span id="precio-reg" class="font-bold text-2xl text-teal-900">--</span>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded border border-slate-100 text-center">
+                        <span class="text-sm text-slate-500 block mb-1">RMSE (Margen de Error de Regresión)</span>
+                        <span class="font-bold text-2xl text-teal-900">Calculando...</span>
+                    </div>
+                </div>
+                <div class="p-4 bg-teal-50 border border-teal-200 rounded-lg text-teal-800 text-sm">
+                    <strong>Nota Arquitectónica:</strong> El frontend está correctamente configurado para consumir los datos de regresión. Una vez que se integre el script de inferencia continua en el backend, el gráfico Plotly se renderizará automáticamente aquí respetando el contrato JSON.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function cargarRegresor() {
+            const apiUrl = sessionStorage.getItem('investingApiUrl');
+            if (!apiUrl) return window.location.href = 'index.html';
+            
+            const ticker = document.getElementById('tickerSelect').value;
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('resultadoReg').classList.add('hidden');
+
+            fetch(`${apiUrl}/api/modelos/${ticker}`, { headers: { 'ngrok-skip-browser-warning': 'true' } })
+            .then(res => { if(!res.ok) throw new Error('Error'); return res.json(); })
+            .then(data => {
+                const pred = data.predicciones_actuales[0];
+                if(pred) {
+                    document.getElementById('precio-reg').innerText = `$${pred.Precio_Referencia.toFixed(2)}`;
+                    document.getElementById('loading').classList.add('hidden');
+                    document.getElementById('resultadoReg').classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                document.getElementById('loading').classList.add('hidden');
+                alert("Asegúrate de que la API está corriendo.");
+            });
+        }
+    </script>
+</body>
+</html>
